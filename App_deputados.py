@@ -48,7 +48,7 @@ def load_data(caminho):
 
 # Carregar e armazenar dados no session_state se ainda não estiverem lá
 if "df_despesas" not in st.session_state:
-    st.session_state["df_despesas"] = load_data('./dados/app_web/Despesas_final.parquet')
+    st.session_state["df_despesas"] = load_data('./app_web/Despesas_final.parquet')
 
 # Acessar os dados do session_state
 df_despesas = st.session_state["df_despesas"]
