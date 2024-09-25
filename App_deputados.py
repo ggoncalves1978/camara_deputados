@@ -33,7 +33,7 @@ st.markdown(
 
 #-----------------------------------------------------------------------------------------------------------------#
 # Caminho onde estão os datasets
-#caminho_despesas = './dados/despesas'
+caminho_despesas = './dados_app_web/Despesas_final.parquet'
 # caminho_proposicoes = './dados/proposicoes'
 # caminho_proposicoes_autores = './dados/proposicoes_autores'
 # caminho_proposicoes_classificacoes = './dados/proposicoes_classificacoes'
@@ -48,10 +48,11 @@ def load_data(caminho):
 
 # Carregar e armazenar dados no session_state se ainda não estiverem lá
 if "df_despesas" not in st.session_state:
-    st.session_state["df_despesas"] = load_data('./app_web/Despesas_final.parquet')
+    st.session_state["df_despesas"] = load_data(caminho_despesas)
 
 # Acessar os dados do session_state
 df_despesas = st.session_state["df_despesas"]
+df_despesas_2 = st.session_state["df_despesas"]
 
 ano_menor = df_despesas['Ano'].min()
 ano_maior = df_despesas['Ano'].max()
@@ -73,12 +74,20 @@ if ano_selecionado == "Todos":
 else:
     df_despesas_filtered = df_despesas[df_despesas['Ano'].isin([ano_selecionado])]
 
+if ano_selecionado == "Todos":
+    df_despesas_filtered_2 = df_despesas_2
+else:
+    df_despesas_filtered_2 = df_despesas_2[df_despesas_2['Ano'].isin([ano_selecionado])]
+
 # Filtrar Partidos
 partido_selecionado = st.sidebar.selectbox('Selecione o partido', partido, placeholder="Digite nome do partido...")
 
 # Filtrar o DataFrame Principal - Partido
 if partido_selecionado != "Todos":
     df_despesas_filtered = df_despesas_filtered[df_despesas_filtered['Partido'] == partido_selecionado]
+
+if partido_selecionado != "Todos":
+    df_despesas_filtered_2 = df_despesas_filtered_2[df_despesas_filtered_2['Partido'] == partido_selecionado]
 
 # Atualizar lista de deputados com base no partido selecionado
 deputados = ['Todos'] + df_despesas_filtered['Nome_Parlamentar'].unique().tolist()
@@ -126,8 +135,8 @@ fig_gastos_tipo = px.bar(df_despesas_tipo_mes,
                            y = 'Vlr_Liquido')
                            
 # Gasto mensal por partido
-df_despesas_partido_ano = df_despesas_filtered.groupby(['Ano_Mes','Partido'], as_index=False).agg({'Vlr_Liquido':'sum'}).sort_values(by='Vlr_Liquido',
-                                                                                                                                     ascending=False)
+df_despesas_partido_ano = df_despesas_filtered.groupby(['Ano_Mes','Partido'], as_index=False).agg({'Vlr_Liquido':'sum'}).reset_index()
+                                                                                    
 #df_despesas_partido_ano_filtered = df_despesas_partido_ano.loc[df_despesas_partido_ano['Ano_Mes'] == ano_selecionado]
 
 fig_gastos_partido = px.bar(df_despesas_partido_ano,
@@ -136,11 +145,11 @@ fig_gastos_partido = px.bar(df_despesas_partido_ano,
                            title= f'Gasto por partido no ano de {ano}')
 
 # Gasto anual por partido e deputado
-df_despesas_partido_deputado_ano = df_despesas_filtered.groupby(['Ano_Mes','Partido','Nome_Parlamentar'], as_index=False).agg(
-                                                                {'Vlr_Liquido':'sum'}).sort_values(by='Vlr_Liquido',ascending=False)
+df_despesas_partido_deputado_ano = df_despesas_filtered_2.groupby(['Partido','Nome_Parlamentar'], as_index=False).agg(
+                                                                {'Vlr_Liquido':'sum'}).sort_values(by='Vlr_Liquido',ascending=False).reset_index()
 
 colunas = ['Nome_Parlamentar', 'Vlr_Liquido']
-df_despesas_partido_deputado_ano_filtered = df_despesas_partido_deputado_ano[colunas].sort_values(by='Vlr_Liquido',ascending=False) 
+df_despesas_partido_deputado_ano_filtered = df_despesas_partido_deputado_ano[colunas]
 
 fig_gastos_partido_dep = px.bar(df_despesas_partido_deputado_ano_filtered,
                                  x = 'Nome_Parlamentar',
@@ -153,7 +162,9 @@ fig_gastos_partido_dep = px.bar(df_despesas_partido_deputado_ano_filtered,
 
 qtde_partido = df_despesas_filtered['Partido'].nunique(), 
 qtde_deputados = df_despesas_filtered['Nome_Parlamentar'].nunique()
-total_gasto = round(df_despesas_filtered['Vlr_Liquido'].sum(),2) 
+total_gasto = round(df_despesas_filtered['Vlr_Liquido'].sum(),2)
+media_gasto_geral = round(df_despesas_filtered_2['Vlr_Liquido'].describe(),2)
+resumo = pd.DataFrame(media_gasto_geral)
 
 
 #-----------------------------------------------------------------------------------------------------------------#
@@ -173,6 +184,7 @@ st.empty()
 
 # Filtra o DataFrame pelo deputado selecionado
 foto_parlamentar = df_despesas_filtered[df_despesas_filtered['Nome_Parlamentar'] == deputado_selecionado]
+profissao_parlamentar = df_despesas_filtered[df_despesas_filtered['Nome_Parlamentar'] == deputado_selecionado]
 
 col1, col2, col3 = st.columns(3)
 
@@ -181,6 +193,7 @@ with col1:
         foto_parlamentar = foto_parlamentar.iloc[0]  # Acessa a primeira linha
         st.image(foto_parlamentar['URI_Deputado_Foto'], width=150)  # Exibe a foto
         st.subheader(f"Deputado: {(foto_parlamentar['Nome_Parlamentar'])} | Partido: {(foto_parlamentar['Partido'])}") # Exibe o nome
+        st.subheader(f"Profissão: {(foto_parlamentar['Profissao'])}")
     else:
         st.write("Todos os parlamentares selecionados.")
 
@@ -189,22 +202,29 @@ with col2:
     st.metric("Quantidade de Partidos", qtde_partido[0])
 
 with col3:
-    st.metric('Valor Total Gasto', total_gasto)
+    st.subheader('Valor total gasto')
+    st.metric('', total_gasto)
+    st.subheader('Resumo estatístico do Partido / Período')
+    st.dataframe(resumo)
 
 st.divider()
 
-col4, col5 = st.columns(2)
+div1, div2 = st.columns(2)
     
-with col4:
+with div1:
     st.subheader(f'Gasto do(s) deputado(s) no ano de {ano_selecionado}')
     st.plotly_chart(fig_gastos_deput, use_container_width=True)
 
-with col5:
+with div2:
     st.subheader(f'Gasto detalhado por tipo de despesa no ano de {ano_selecionado}')
     st.plotly_chart(fig_gastos_tipo, use_container_width=True)
+
+st.divider()
 
 # col6 = st.columns(1)
 
 # with col6:
 st.plotly_chart(fig_gastos_partido_dep, use_container_width=True)
 
+
+# %%
