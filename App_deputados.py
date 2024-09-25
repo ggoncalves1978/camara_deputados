@@ -33,7 +33,7 @@ st.markdown(
 
 #-----------------------------------------------------------------------------------------------------------------#
 # Caminho onde estão os datasets
-caminho_despesas = './dados_app_web/Despesas_final.parquet'
+caminho_despesas = './app_web/Despesas_final.parquet'
 # caminho_proposicoes = './dados/proposicoes'
 # caminho_proposicoes_autores = './dados/proposicoes_autores'
 # caminho_proposicoes_classificacoes = './dados/proposicoes_classificacoes'
