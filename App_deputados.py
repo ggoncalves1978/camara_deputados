@@ -1,5 +1,6 @@
 ## Bibliotecas
 import pandas as pd
+from babel.numbers import format_currency
 import os
 import warnings
 import streamlit as st
@@ -31,13 +32,13 @@ st.markdown(
     unsafe_allow_html=True
 )
 
+# load Style css
+with open('style.css')as f:
+    st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html = True)
+
 #-----------------------------------------------------------------------------------------------------------------#
 # Caminho onde estão os datasets
 caminho_despesas = './app_web/Despesas_final.parquet'
-# caminho_proposicoes = './dados/proposicoes'
-# caminho_proposicoes_autores = './dados/proposicoes_autores'
-# caminho_proposicoes_classificacoes = './dados/proposicoes_classificacoes'
-#caminho_votacoes = './dados/votacoes'
 
 #-----------------------------------------------------------------------------------------------------------------#
 # Utilizado para operações pesadas
@@ -53,6 +54,7 @@ if "df_despesas" not in st.session_state:
 # Acessar os dados do session_state
 df_despesas = st.session_state["df_despesas"]
 df_despesas_2 = st.session_state["df_despesas"]
+df_despesas_3 = st.session_state["df_despesas"]
 
 ano_menor = df_despesas['Ano'].min()
 ano_maior = df_despesas['Ano'].max()
@@ -79,6 +81,11 @@ if ano_selecionado == "Todos":
 else:
     df_despesas_filtered_2 = df_despesas_2[df_despesas_2['Ano'].isin([ano_selecionado])]
 
+if ano_selecionado == "Todos":
+    df_despesas_filtered_3 = df_despesas_3
+else:
+    df_despesas_filtered_3 = df_despesas_3[df_despesas_3['Ano'].isin([ano_selecionado])]
+
 # Filtrar Partidos
 partido_selecionado = st.sidebar.selectbox('Selecione o partido', partido, placeholder="Digite nome do partido...")
 
@@ -93,14 +100,12 @@ if partido_selecionado != "Todos":
 deputados = ['Todos'] + df_despesas_filtered['Nome_Parlamentar'].unique().tolist()
 deputado_selecionado = st.sidebar.selectbox('Selecione o parlamentar', deputados, placeholder="Digite o nome do parlamentar...")
 
-# deputados = ['Todos'] + df_despesas_filtered_1['Nome_Parlamentar'].unique().tolist()
-# deputado_selecionado = st.sidebar.selectbox('Selecione o parlamentar', deputados, placeholder="Digite nome do parlamentar...")
-
 # Filtrar o DataFrame Principal - Deputado
 if deputado_selecionado != "Todos":
     df_despesas_filtered = df_despesas_filtered[df_despesas_filtered['Nome_Parlamentar'] == deputado_selecionado]
 
 st.sidebar.markdown("Desenvolvido por Gabriel Gonçalves")
+st.sidebar.markdown('https://www.linkedin.com/in/gabrielgoncalves78/')
 
 #-----------------------------------------------------------------------------------------------------------------#
 # Graficos
@@ -116,29 +121,23 @@ fig_qtde_parlamentar = px.bar(qtde_parlamentar, x="Partido", y="Nome_Parlamentar
 
 # Gasto mensal por parlamentar
 df_despesas_deputado_mes = df_despesas_filtered.groupby(['Ano_Mes', 'Nome_Parlamentar'])['Vlr_Liquido'].sum().reset_index()
-#df_despesas_deputados_mes_filtered = df_despesas_deputado_mes.loc[df_despesas_deputado_mes['Nome_Parlamentar'] == deputado_selecionado]
 
 fig_gastos_deput = px.line(df_despesas_deputado_mes,
                            x = 'Ano_Mes',
                            y = 'Vlr_Liquido')
-                           #title=f'Gasto por deputado entre os anos de {ano_inicial} e {ano_final}')
-
+                           
 # Gasto mensal detalhado por tipo de despesa #'Ano_Mes', 'Nome_Parlamentar',
 df_despesas_tipo_mes = df_despesas_filtered.groupby(['Descricao_txt'])['Vlr_Liquido'].sum().sort_values(ascending=False).reset_index()
-# df_despesas_tipo_mes_filtered = df_despesas_tipo_mes.loc[(df_despesas_tipo_mes['Nome_Parlamentar'] == deputado_selecionado) & 
-#                                                          (df_despesas_tipo_mes['Ano_Mes'] <= ano_final) &
-#                                                          (df_despesas_tipo_mes['Ano_Mes'] >= ano_inicial)]
-# df_despesas_tipo_mes_filtered = df_despesas_tipo_mes_filtered.groupby(['Descricao_txt'])['Vlr_Liquido'].sum().sort_values(ascending=False).reset_index()
 
 fig_gastos_tipo = px.bar(df_despesas_tipo_mes,
                            x = 'Descricao_txt',
                            y = 'Vlr_Liquido')
+# Alterando a cor de todas as barras para uma cor específica (ex: 'blue')
+fig_gastos_tipo.update_traces(marker_color='yellow')
                            
 # Gasto mensal por partido
 df_despesas_partido_ano = df_despesas_filtered.groupby(['Ano_Mes','Partido'], as_index=False).agg({'Vlr_Liquido':'sum'}).reset_index()
                                                                                     
-#df_despesas_partido_ano_filtered = df_despesas_partido_ano.loc[df_despesas_partido_ano['Ano_Mes'] == ano_selecionado]
-
 fig_gastos_partido = px.bar(df_despesas_partido_ano,
                            x = 'Partido',
                            y = 'Vlr_Liquido',
@@ -153,9 +152,22 @@ df_despesas_partido_deputado_ano_filtered = df_despesas_partido_deputado_ano[col
 
 fig_gastos_partido_dep = px.bar(df_despesas_partido_deputado_ano_filtered,
                                  x = 'Nome_Parlamentar',
-                                 y = 'Vlr_Liquido',
-                                title= f'Gasto por partido no ano de {ano_selecionado} aberto por parlamentar')
+                                 y = 'Vlr_Liquido')
+# Alterando a cor de todas as barras para uma cor específica (ex: 'blue')
+fig_gastos_partido_dep.update_traces(marker_color='gray')
+                                
 
+# Gasto total por partido no periodo
+df_despesas_por_partido = df_despesas_filtered_3.groupby(['Partido']).agg({'Vlr_Liquido': 'sum'}).reset_index()
+
+fig_total_gasto_partido = px.scatter(df_despesas_por_partido, x="Vlr_Liquido", size="Vlr_Liquido", color="Partido",
+                                    log_x=True, size_max=65, text='Partido')
+
+# Ajustando a posição do texto para aparecer dentro das bolas
+fig_total_gasto_partido.update_traces(textposition='middle center')
+
+# Removendo a legenda
+fig_total_gasto_partido.update_layout(showlegend=False)
 
 #-----------------------------------------------------------------------------------------------------------------#
 # KPI´s - Calculos adcionais (cards)
@@ -163,8 +175,16 @@ fig_gastos_partido_dep = px.bar(df_despesas_partido_deputado_ano_filtered,
 qtde_partido = df_despesas_filtered['Partido'].nunique(), 
 qtde_deputados = df_despesas_filtered['Nome_Parlamentar'].nunique()
 total_gasto = round(df_despesas_filtered['Vlr_Liquido'].sum(),2)
+
 media_gasto_geral = round(df_despesas_filtered_2['Vlr_Liquido'].describe(),2)
 resumo = pd.DataFrame(media_gasto_geral)
+
+# Função para formatar números no padrão brasileiro
+def format_float_brasil(x):
+    return f"{x:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+
+# Aplicando a função de formatação ao DataFrame
+resumo_formatado = resumo.applymap(format_float_brasil)
 
 
 #-----------------------------------------------------------------------------------------------------------------#
@@ -203,9 +223,9 @@ with col2:
 
 with col3:
     st.subheader('Valor total gasto')
-    st.metric('', total_gasto)
-    st.subheader('Resumo estatístico do Partido / Período')
-    st.dataframe(resumo)
+    st.metric('', format_currency(total_gasto, 'BRL', locale='pt_BR'))
+    st.subheader('Resumo estatístico do Partido')
+    st.data_editor(resumo_formatado, use_container_width=True)
 
 st.divider()
 
@@ -221,10 +241,8 @@ with div2:
 
 st.divider()
 
-# col6 = st.columns(1)
-
-# with col6:
+st.subheader(f'Gasto por partido no ano de {ano_selecionado} aberto por parlamentar')
 st.plotly_chart(fig_gastos_partido_dep, use_container_width=True)
 
-
-# %%
+st.subheader(f'Gasto total do partido no ano de {ano_selecionado}')
+st.plotly_chart(fig_total_gasto_partido, use_container_width=True)
